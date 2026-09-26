@@ -141,3 +141,62 @@ Human Approval
              │
              ▼
          Status: Sent
+
+🛠️ Tech Stack
+n8n — Workflow automation and orchestration
+LLMs — Company analysis, opportunity identification, lead scoring, and outreach generation
+Serper API — Web research
+Google Sheets — Lead input and workflow data storage
+Gmail — Approved outreach delivery
+Structured Outputs — Consistent AI-generated data
+Human-in-the-Loop — Manual approval before outreach
+
+
+📊 Example Workflow
+A typical lead moves through the following stages:
+Company
+   ↓
+Research
+   ↓
+AI Analysis
+   ↓
+Opportunity
+   ↓
+Lead Score
+   ↓
+Qualification
+   ↓
+Outreach
+   ↓
+Human Review
+   ↓
+Approved / Rejected
+   ↓
+Email / Stop
+   ↓
+Status Tracking
+
+The final lead record can reflect outcomes such as:
+Qualified → Approved → Sent
+Qualified → Rejected
+
+🎯 Why LeadLens?
+Lead generation often involves repetitive tasks such as researching companies, identifying relevant opportunities, qualifying leads, and writing personalized outreach.
+LeadLens explores how these steps can be combined into a single AI-powered workflow while keeping human judgment in the loop before external communication.
+The project demonstrates how LLMs, web research, structured outputs, workflow automation, lead scoring, and human approval can work together in a practical business automation system.
+
+🔮 Future Improvements
+Potential future extensions include:
+CRM integrations
+Additional research sources
+Automated follow-up workflows
+Duplicate lead detection
+More advanced lead qualification
+Scheduled execution
+Analytics and reporting
+Additional specialized research agents
+
+
+👨‍💻 Project
+Built by Sima Baynaghi as a practical project exploring AI-powered lead research and business automation.
+The project focuses on combining LLMs, web research, workflow automation, structured AI outputs, and human-in-the-loop decision making into a practical lead generation system.
