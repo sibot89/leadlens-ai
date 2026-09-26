@@ -1,0 +1,1579 @@
+{
+  "name": "Lead Lens",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2976,
+        -704
+      ],
+      "id": "66a54491-10e7-415b-a593-947d3d33cc7d",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko",
+          "mode": "list",
+          "cachedResultName": "LeadLens Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Companies",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2816,
+        -704
+      ],
+      "id": "1f0fb1dd-3ea2-4ef2-989e-c0719cfd5c31",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "wbnBlEOCl5wYIz6x",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -2448,
+        -512
+      ],
+      "id": "7417c198-1ca2-4744-8036-84f48ee2724f",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"industry\": {\n      \"type\": \"string\"\n    },\n    \"description\": {\n      \"type\": \"string\"\n    },\n    \"products_or_services\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"target_customers\": {\n      \"type\": \"string\"\n    },\n    \"company_size\": {\n      \"type\": \"string\"\n    },\n    \"growth_signals\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"potential_automation_need\": {\n      \"type\": \"string\"\n    },\n    \"research_summary\": {\n      \"type\": \"string\"\n    }\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -2304,
+        -528
+      ],
+      "id": "0db2a271-5166-4f34-a611-ebeede6396dd",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "fb4e232a967c64b1ed841ea9459b5b13c67532a4"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"q\": \"{{$json.company}} company products services customers\",\n  \"num\": 5\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -2640,
+        -704
+      ],
+      "id": "fa1c1ef2-dd23-4d0e-b4df-a6e1e587408a",
+      "name": "Web Research (Serper)"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a B2B lead research analyst.\n\nAnalyze the following company based only on the provided web search results.\n\nCompany: {{$json.company}}\nWebsite: {{$json.website}}\n\nWeb research:\n{{ JSON.stringify($json.organic) }}\n\nIdentify:\n\n* industry\n* company description\n* main products or services\n* target customers\n* company size, if available\n* growth signals, if available\n* potential automation needs\n* a concise research summary\n\nImportant rules:\n\n1. Company size:\n   Only report company size when supported by explicit evidence such as employee count, employee range, or another clearly stated company-size metric.\n   Do NOT use customer count, revenue, number of countries served, market reach, or number of customers as a proxy for company size.\n   If company size is not available, return \"Not specified\".\n\n2. Growth signals:\n   Only report evidence that indicates actual company growth or expansion, such as:\n\n* increasing revenue\n* increasing employee count\n* funding or investment\n* acquisitions\n* geographic expansion\n* new products or business lines\n* explicitly reported customer or user growth\n* other clearly documented expansion or growth metrics\n\nDo NOT treat the following as growth signals by themselves:\n\n* having many customers\n* serving many countries\n* being a large or well-known company\n* having Fortune 500 customers\n* having a large product portfolio\n* serving a large market\n\nIf there is no clear evidence of growth, return an empty list.\n\n3. Customer scale:\n   If the research contains useful information about the number of customers, users, or businesses served, preserve that information in the research summary or target customer information, but do not use it as company size or growth evidence unless the research explicitly describes growth.\n\n4. Potential automation needs:\n   Identify realistic AI or workflow automation opportunities based on the company's actual products, services, operations, or documented needs.\n   Do not assume that a company needs external automation services simply because AI could theoretically be applied to its business.\n\n5. Evidence:\n   Be factual and conservative. Do not invent information or infer unsupported facts from indirect signals.\n\nReturn only information supported by the provided research.\n",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -2448,
+        -704
+      ],
+      "id": "6f030a76-e98d-4e8f-8b87-15bc75b5ecbf",
+      "name": "AI Analysis"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -1840,
+        -528
+      ],
+      "id": "0be1ec65-104b-4884-9d83-7225a8efd32d",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a B2B lead qualification analyst for an AI automation consulting service.\n\nYour task is to evaluate how strong the evidence is that this company is a realistic potential client for an external AI and workflow automation service.\n\nDo NOT score the company based simply on its size, popularity, revenue, number of customers, geographic reach, or the fact that AI could theoretically be useful to the business.\n\nEvaluate the lead using these five dimensions:\n\n1. Automation opportunity strength (0–30)\n\nEvaluate how strongly the company's actual business, operations, products, customers, or workflows indicate meaningful opportunities for AI or workflow automation.\n\nStrong evidence includes:\n- Complex or high-volume operational workflows\n- Repetitive processes\n- Data-heavy operations\n- Customer-facing processes at scale\n- Sales, support, onboarding, fulfillment, reporting, or other workflow-intensive activities\n- Explicit automation initiatives or documented operational challenges\n\nA specific documented pain point is strong evidence, but it is NOT required for a company to receive meaningful points.\n\nDo not give significant points merely because AI could theoretically be useful to almost any business.\n2. Opportunity strength (0–25)\n\n* Are the identified opportunities specific, practical, and relevant to this company's actual business?\n* Give higher scores when the opportunity is clearly connected to the company's products, customers, or operations.\n* Generic opportunities such as \"improve customer experience\" or \"use AI for analytics\" should receive low scores.\n\n3. Automation fit (0–20)\n\n* How naturally does the company's business involve repetitive, data-heavy, communication-heavy, or workflow-driven processes that could realistically be automated?\n* Do not assume that every large company has a strong automation opportunity.\n\n4. External-service fit (0–15)\n\nEvaluate whether the identified opportunities could realistically be addressed by an external AI automation consultant.\n\nDo not require explicit evidence that the company is currently looking for an external consultant.\n\nConsider:\n- Whether the opportunity is outside the company's core product\n- Whether it involves internal business workflows\n- Whether the opportunity could reasonably be implemented as an automation project\n- Whether the available evidence is sufficient to justify further outreach\n\nDo not automatically penalize large companies simply because they may have internal technical teams.\n\n5. Evidence quality (0–10)\n\n* How reliable and specific is the available research?\n* Give higher scores when the conclusions are supported by clear, company-specific information.\n* Do not treat customer count, number of countries served, Fortune 500 customers, or brand recognition as evidence of an automation need.\n\nImportant scoring rules:\n\n* Company size is NOT a positive signal by itself.\n* Customer count is NOT a company-size signal.\n* Geographic reach is NOT a growth signal.\n* A large or famous company is NOT automatically a strong lead.\n* Theoretical AI possibilities should not receive significant points.\n* If there is little evidence of a real automation need, the lead should not receive a high score.\n* If the company already provides the proposed automation as a core part of its own product, do not treat that as a strong opportunity unless there is clear evidence of an additional need.\n* Be conservative when evidence is weak or ambiguous.\n* A score above 80 should require strong, company-specific evidence of a realistic external automation opportunity.\n* A score above 90 should be reserved for exceptionally strong evidence across multiple dimensions.\n* Do not inflate scores simply because several opportunities were identified. Three weak opportunities should not produce a high score.\n*A company can receive a moderate or good score based on strong operational fit and a concrete, plausible opportunity even when an explicit internal pain point is not documented.\nCompany:\n{{ $json.company }}\n\nIndustry:\n{{ $json.industry }}\n\nCompany size:\n{{ $json.company_size }}\n\nGrowth signals:\n{{ $json.growth_signals }}\n\nPotential automation need:\n{{ $json.potential_automation_need }}\n\nResearch summary:\n{{ $('AI Analysis').item.json.output.research_summary }}\n\nIdentified opportunities:\n{{ JSON.stringify($json.opportunities) }}\n\nCalculate the total score from the five dimensions.\n\nReturn a lead_score from 0 to 100 and a concise score_reason explaining the main factors behind the score.\n\nUse this output format:\n\n{\n\"lead_score\": 0,\n\"score_reason\": \"Short explanation based on the strongest evidence and limitations.\"\n}\n",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1840,
+        -704
+      ],
+      "id": "d41cab7a-1896-47a9-ba8f-3adcafef605d",
+      "name": "Lead Scoring"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "={\n  \"type\": \"object\",\n  \"properties\": {\n    \"company_fit_score\": {\n      \"type\": \"number\"\n    },\n    \"automation_potential_score\": {\n      \"type\": \"number\"\n    },\n    \"growth_complexity_score\": {\n      \"type\": \"number\"\n    },\n    \"opportunity_clarity_score\": {\n      \"type\": \"number\"\n    },\n    \"lead_score\": {\n      \"type\": \"number\"\n    },\n    \"priority\": {\n      \"type\": \"string\"\n    },\n    \"reason\": {\n      \"type\": \"string\"\n    }\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1696,
+        -528
+      ],
+      "id": "39f61c9d-6a0b-474b-bec7-8473b3a9ddf4",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze this company and identify relevant AI or automation opportunities.\n\nCompany data:\n{{ JSON.stringify($json) }}\n\nIdentify up to 3 opportunities.\n\nPrioritize opportunities that are:\n\n1. Highly relevant to the company's actual business\n2. Likely to provide meaningful business value\n3. Strongly supported by the available company information\n4. Realistic opportunities for an AI automation consultant\n\nImportant:\n\n* Identify business opportunities, not technical implementation details.\n* Base opportunities on the company's actual products, services, customers, operations, and documented needs.\n* Do not assume that a company needs external AI automation simply because AI could theoretically be applied to its business.\n* Avoid opportunities that are already clearly provided as a core product or service by the company, unless the research indicates a meaningful expansion or automation gap.\n* Prefer specific, practical, and actionable opportunities.\n* Keep opportunity names concise and business-focused.\n* Keep the reason concise and explain why the opportunity is relevant to this specific company.\n\nGood examples:\n\n* \"Customer Support Automation\"\n* \"AI-powered Lead Qualification\"\n* \"Marketing Personalization\"\n* \"CRM Workflow Automation\"\n\nAvoid:\n\n* \"Improve customer experience\"\n* \"Optimize growth\"\n* \"Transform the customer journey\"\n* \"Implement a sentiment analysis system using AI\"\n\nReturn the opportunities using the required structured output format.\n",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -2144,
+        -704
+      ],
+      "id": "292ceffb-6c16-47a5-b768-d37f3ee7ce7c",
+      "name": "Opportunity Identification"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -2144,
+        -416
+      ],
+      "id": "0be08332-f067-4a07-b9b2-669731417378",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"opportunities\": [\n    {\n      \"opportunity\": \"Customer Support Automation\",\n      \"reason\": \"The company has a large customer-facing operation and research indicates potential for automating repetitive support workflows.\"\n    },\n    {\n      \"opportunity\": \"Lead Qualification\",\n      \"reason\": \"The company has sales and marketing processes where AI could help identify and prioritize high-value leads.\"\n    }\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -2000,
+        -496
+      ],
+      "id": "60dd2065-7a52-4416-adb8-26a211f6cc41",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"subject\": \"A potential automation opportunity for MedixCare\",\n  \"message\": \"Hi, I noticed MedixCare is expanding its telehealth services to rural communities. Automating parts of remote patient monitoring could help support that expansion while reducing manual work. Would you be open to a brief conversation?\",\n  \"opportunity_used\": \"Telehealth Automation\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1072,
+        -512
+      ],
+      "id": "af443192-54ef-4d30-8bfa-396ce4ea6c35",
+      "name": "Structured Output Parser4"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a short B2B cold outreach message for this company.\n\nCompany:\n{{ $('Get row(s) in sheet').item.json.company }}\n\nResearch:\n{{ $('AI Analysis').item.json.output.research_summary }}\n\nOpportunities:\n{{ $('Opportunity Identification').item.json.output.opportunities}}\n\nChoose ONE opportunity that is most relevant.\n\nFor \"opportunity_used\", return the name of the selected opportunity only, not its explanation or reason.\n\nReturn ONLY a JSON object with exactly these three fields:\n\n{\n  \"subject\": \"short email subject\",\n  \"message\": \"short personalized outreach message\",\n  \"opportunity_used\": \"the selected opportunity\"\n}\n\nDo not include any other fields.\nDo not include markdown.\nDo not include explanations.\nDo not include Company, Industry, Research Summary, or Opportunities in the response.\nDo not use [Contact Name], [Your Name], or any other placeholders.",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1216,
+        -704
+      ],
+      "id": "03e059e1-9487-4d0a-84eb-75ac6b953d41",
+      "name": "Outreach Generation"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -1216,
+        -560
+      ],
+      "id": "e73364c1-6f0a-489a-b4f2-31e0babb5817",
+      "name": "Google Gemini Chat Model3",
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko",
+          "mode": "list",
+          "cachedResultName": "LeadLens Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1666099886,
+          "mode": "list",
+          "cachedResultName": "Lead Research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko/edit#gid=1666099886"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "website": "={{ $('Get row(s) in sheet').item.json.website }}",
+            "outreach_subject": "={{ $json.output.subject }}",
+            "outreach_message": "={{ $json.output.message }}",
+            "opportunity_used": "={{ $json.output.opportunity_used }}"
+          },
+          "matchingColumns": [
+            "website"
+          ],
+          "schema": [
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "industry",
+              "displayName": "industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "products_or_services",
+              "displayName": "products_or_services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "target_customers",
+              "displayName": "target_customers",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company_size",
+              "displayName": "company_size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "growth_signals",
+              "displayName": "growth_signals",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "potential_automation_need",
+              "displayName": "potential_automation_need",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "research_summary",
+              "displayName": "research_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "lead_status",
+              "displayName": "lead_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "opportunities",
+              "displayName": "opportunities",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "lead_score",
+              "displayName": "lead_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "scoring_reason",
+              "displayName": "scoring_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "outreach_subject",
+              "displayName": "outreach_subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "outreach_message",
+              "displayName": "outreach_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "opportunity_used",
+              "displayName": "opportunity_used",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -912,
+        -704
+      ],
+      "id": "938d0a4d-295a-4e2d-bc0c-3ed5d7c0cf19",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "wbnBlEOCl5wYIz6x",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "bf721d69-c9d6-4a1b-80ea-96bb2ad8837b",
+              "leftValue": "={{ $json.lead_score }}",
+              "rightValue": 69,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1440,
+        -688
+      ],
+      "id": "00dc716b-e9d4-47f6-8485-19ec1adb942a",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko",
+          "mode": "list",
+          "cachedResultName": "LeadLens Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1666099886,
+          "mode": "list",
+          "cachedResultName": "Lead Research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko/edit#gid=1666099886"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_score": "={{ $json.output.lead_score }}",
+            "website": "={{ $('Get row(s) in sheet').item.json.website }}",
+            "lead_status": "Not Qualified",
+            "priority": "={{ $json.output.priority }}",
+            "opportunities": "={{ $('Opportunity Identification').item.json.output.opportunities }}",
+            "industry": "={{ $('AI Analysis').item.json.output.industry }}",
+            "description": "={{ $('AI Analysis').item.json.output.description }}",
+            "products_or_services": "={{ $('AI Analysis').item.json.output.products_or_services }}",
+            "target_customers": "={{ $('AI Analysis').item.json.output.target_customers }}",
+            "company_size": "={{ $('AI Analysis').item.json.output.company_size }}",
+            "growth_signals": "={{ $('AI Analysis').item.json.output.growth_signals }}",
+            "potential_automation_need": "={{ $('AI Analysis').item.json.output.potential_automation_need }}",
+            "research_summary": "={{ $('AI Analysis').item.json.output.research_summary }}",
+            "scoring_reason": "={{ $('Lead Scoring').item.json.output.reason }}",
+            "company": "={{ $('Get row(s) in sheet').item.json.company }}"
+          },
+          "matchingColumns": [
+            "website"
+          ],
+          "schema": [
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "industry",
+              "displayName": "industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "products_or_services",
+              "displayName": "products_or_services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_customers",
+              "displayName": "target_customers",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company_size",
+              "displayName": "company_size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "growth_signals",
+              "displayName": "growth_signals",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "potential_automation_need",
+              "displayName": "potential_automation_need",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "research_summary",
+              "displayName": "research_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lead_status",
+              "displayName": "lead_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "opportunities",
+              "displayName": "opportunities",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lead_score",
+              "displayName": "lead_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "scoring_reason",
+              "displayName": "scoring_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "outreach_subject",
+              "displayName": "outreach_subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "outreach_message",
+              "displayName": "outreach_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "opportunity_used",
+              "displayName": "opportunity_used",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1568,
+        -704
+      ],
+      "id": "5fa06478-f27f-447e-bf0e-f7a8f7fb8b50",
+      "name": "Append or update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "wbnBlEOCl5wYIz6x",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "loopId": "6aaa9f3a64a59930e4f8cf51",
+        "requestText": "=Lead Review\n\nCompany: {{ $('Get row(s) in sheet').item.json.company }}\nLead Score: {{ $('Lead Scoring').item.json.output.lead_score }}\n\nOpportunity:\n{{ $json.opportunity_used }}\n\nSubject\n{{ $json.outreach_subject }}:\n\nMessage:\n{{ $json.outreach_message }}\n\nPlease review the generated outreach and approve or reject it before sending.",
+        "priority": "high",
+        "responseType": "single_select",
+        "defaultResponse": "Reject",
+        "additionalFields": {},
+        "responseOptions": "Approve,Reject"
+      },
+      "type": "n8n-nodes-human-in-the-loop.hitlNode",
+      "typeVersion": 1,
+      "position": [
+        -752,
+        -704
+      ],
+      "id": "eb0c03a9-505b-41d8-86e3-837f0191adba",
+      "name": "Send request and wait for response",
+      "credentials": {
+        "hitlCredentialsApi": {
+          "id": "fqB2e9mPhxpF9tPg",
+          "name": "HITL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "24006e09-e318-480f-a9b0-bb714a8495d7",
+              "leftValue": "={{ $('Send request and wait for response').item.json.response }}",
+              "rightValue": "approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -416,
+        -704
+      ],
+      "id": "0c6fc8bb-1498-42e6-ad03-1b3331a4340c",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko",
+          "mode": "list",
+          "cachedResultName": "LeadLens Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1666099886,
+          "mode": "list",
+          "cachedResultName": "Lead Research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko/edit#gid=1666099886"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "={{ $json.response === \"approve\" ? \"Approved\" : \"Rejected\" }}",
+            "website": "={{ $('Get row(s) in sheet').item.json.website }}"
+          },
+          "matchingColumns": [
+            "website"
+          ],
+          "schema": [
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "industry",
+              "displayName": "industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "products_or_services",
+              "displayName": "products_or_services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "target_customers",
+              "displayName": "target_customers",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company_size",
+              "displayName": "company_size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "growth_signals",
+              "displayName": "growth_signals",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "potential_automation_need",
+              "displayName": "potential_automation_need",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "research_summary",
+              "displayName": "research_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "lead_status",
+              "displayName": "lead_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "opportunities",
+              "displayName": "opportunities",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "lead_score",
+              "displayName": "lead_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "scoring_reason",
+              "displayName": "scoring_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "outreach_subject",
+              "displayName": "outreach_subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "outreach_message",
+              "displayName": "outreach_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "opportunity_used",
+              "displayName": "opportunity_used",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -608,
+        -704
+      ],
+      "id": "2be28aa5-e3f5-4efb-86d3-512354a4353e",
+      "name": "Append or update row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "wbnBlEOCl5wYIz6x",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "simabaynaqi@gmail.com",
+        "subject": "={{ $('Outreach Generation').item.json.output.subject }}",
+        "message": "={{ $('Outreach Generation').item.json.output.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -208,
+        -720
+      ],
+      "id": "64fe7cc9-a81f-4e4d-9e1c-4441df13ed85",
+      "name": "Send a message",
+      "webhookId": "496ca246-23ee-45a3-98c8-5a2576c04caf",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "D9bjzzHFeQ155rxJ",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko",
+          "mode": "list",
+          "cachedResultName": "LeadLens Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1666099886,
+          "mode": "list",
+          "cachedResultName": "Lead Research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1T2EcMCgwM9zr8SNHdQqHDJuxOuZhhIJ35hRT6qzsrko/edit#gid=1666099886"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "website": "={{ $('Get row(s) in sheet').item.json.website }}",
+            "status": "Sent"
+          },
+          "matchingColumns": [
+            "website"
+          ],
+          "schema": [
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "industry",
+              "displayName": "industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "products_or_services",
+              "displayName": "products_or_services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "target_customers",
+              "displayName": "target_customers",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company_size",
+              "displayName": "company_size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "growth_signals",
+              "displayName": "growth_signals",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "potential_automation_need",
+              "displayName": "potential_automation_need",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "research_summary",
+              "displayName": "research_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "lead_status",
+              "displayName": "lead_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "opportunities",
+              "displayName": "opportunities",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "lead_score",
+              "displayName": "lead_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "scoring_reason",
+              "displayName": "scoring_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "outreach_subject",
+              "displayName": "outreach_subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "outreach_message",
+              "displayName": "outreach_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "opportunity_used",
+              "displayName": "opportunity_used",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -32,
+        -720
+      ],
+      "id": "bce13387-e170-4e20-8f4f-53594d63001f",
+      "name": "Append or update row in sheet3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "wbnBlEOCl5wYIz6x",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Web Research (Serper)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web Research (Serper)": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Opportunity Identification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Lead Scoring",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Scoring": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Lead Scoring",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Opportunity Identification": {
+      "main": [
+        [
+          {
+            "node": "Lead Scoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Opportunity Identification",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Opportunity Identification",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser4": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Outreach Generation",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outreach Generation": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Outreach Generation",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Outreach Generation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send request and wait for response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send request and wait for response": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet2": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "5532547f-4921-43e8-a4e2-a4082706bc7d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d4e06e821d0fe799a39339e667737728f79a9bcd5522ac4b36db0d24e60530bf"
+  },
+  "nodeGroups": [],
+  "id": "0yOwhEDTMlcIMzvG",
+  "tags": []
+}
