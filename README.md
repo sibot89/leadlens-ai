@@ -106,6 +106,7 @@ This adds a human control layer between AI-generated content and external commun
 ![LeadLens Workflow](screenshots/workflow-overview.png)
 
 ```text
+
 Google Sheets
       │
       ▼
@@ -142,6 +143,19 @@ Human Approval
              ▼
          Status: Sent
 
+## 📊 Test Run Results
+
+In a test batch of 23 companies:
+
+| Metric | Result |
+|---|---|
+| Companies processed | 23 |
+| Qualified leads | 4 (17%) |
+| Approved & sent | 2 |
+| Rejected at human review | 2 |
+
+The lower qualification rate reflects the scoring system's intent: prioritizing companies with both a clear business fit *and* a concrete automation opportunity, rather than qualifying leads on a single weak signal.
+
 🛠️ Tech Stack
 n8n — Workflow automation and orchestration
 LLMs — Company analysis, opportunity identification, lead scoring, and outreach generation
@@ -150,7 +164,7 @@ Google Sheets — Lead input and workflow data storage
 Gmail — Approved outreach delivery
 Structured Outputs — Consistent AI-generated data
 Human-in-the-Loop — Manual approval before outreach
-
+Reliability — Retry-on-fail handling for LLM structured-output failures
 
 📊 Example Workflow
 A typical lead moves through the following stages:
