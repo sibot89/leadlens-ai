@@ -106,7 +106,6 @@ This adds a human control layer between AI-generated content and external commun
 ![LeadLens Workflow](screenshots/workflow-overview.png)
 
 ```text
-
 Google Sheets
       │
       ▼
@@ -142,6 +141,9 @@ Human Approval
              │
              ▼
          Status: Sent
+```
+
+---
 
 ## 📊 Test Run Results
 
@@ -156,61 +158,54 @@ In a test batch of 23 companies:
 
 The lower qualification rate reflects the scoring system's intent: prioritizing companies with both a clear business fit *and* a concrete automation opportunity, rather than qualifying leads on a single weak signal.
 
-🛠️ Tech Stack
-n8n — Workflow automation and orchestration
-LLMs — Company analysis, opportunity identification, lead scoring, and outreach generation
-Serper API — Web research
-Google Sheets — Lead input and workflow data storage
-Gmail — Approved outreach delivery
-Structured Outputs — Consistent AI-generated data
-Human-in-the-Loop — Manual approval before outreach
-Reliability — Retry-on-fail handling for LLM structured-output failures
+---
 
-📊 Example Workflow
+## 🛠️ Tech Stack
+
+- **n8n** — Workflow automation and orchestration
+- **LLMs** — Company analysis, opportunity identification, lead scoring, and outreach generation
+- **Serper API** — Web research
+- **Google Sheets** — Lead input and workflow data storage
+- **Gmail** — Approved outreach delivery
+- **Structured Outputs** — Consistent AI-generated data
+- **Human-in-the-Loop** — Manual approval before outreach
+- **Reliability** — Retry-on-fail handling for LLM structured-output failures
+
+---
+
+## 📊 Example Workflow
+
 A typical lead moves through the following stages:
-Company
-   ↓
-Research
-   ↓
-AI Analysis
-   ↓
-Opportunity
-   ↓
-Lead Score
-   ↓
-Qualification
-   ↓
-Outreach
-   ↓
-Human Review
-   ↓
-Approved / Rejected
-   ↓
-Email / Stop
-   ↓
-Status Tracking
+
+```text
+Company → Research → AI Analysis → Opportunity → Lead Score →
+Qualification → Outreach → Human Review → Approved/Rejected →
+Email/Stop → Status Tracking
+```
 
 The final lead record can reflect outcomes such as:
-Qualified → Approved → Sent
-Qualified → Rejected
 
-🎯 Why LeadLens?
-Lead generation often involves repetitive tasks such as researching companies, identifying relevant opportunities, qualifying leads, and writing personalized outreach.
-LeadLens explores how these steps can be combined into a single AI-powered workflow while keeping human judgment in the loop before external communication.
-The project demonstrates how LLMs, web research, structured outputs, workflow automation, lead scoring, and human approval can work together in a practical business automation system.
+- Qualified → Approved → Sent
+- Qualified → Rejected
 
-🔮 Future Improvements
-Potential future extensions include:
-CRM integrations
-Additional research sources
-Automated follow-up workflows
-Duplicate lead detection
-More advanced lead qualification
-Scheduled execution
-Analytics and reporting
-Additional specialized research agents
+---
 
+## 🎯 Why LeadLens?
 
-👨‍💻 Project
-Built by Sima Baynaghi as a practical project exploring AI-powered lead research and business automation.
-The project focuses on combining LLMs, web research, workflow automation, structured AI outputs, and human-in-the-loop decision making into a practical lead generation system.
+Lead generation often involves repetitive research, qualification, and outreach-writing tasks. LeadLens combines these into a single AI-powered workflow — LLMs, web research, structured outputs, lead scoring, and human approval — while keeping human judgment in the loop before external communication.
+
+---
+
+## 🔮 Future Improvements
+
+- CRM integrations
+- Additional research sources
+- Automated follow-up workflows
+- Duplicate lead detection
+- Scheduled execution and analytics/reporting
+
+---
+
+## 👨‍💻 Project
+
+Built by Sima Baynaghi as a practical project exploring AI-powered lead research and business automation — combining LLMs, web research, workflow automation, structured AI outputs, and human-in-the-loop decision making into a practical lead generation system.
